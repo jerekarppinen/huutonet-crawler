@@ -272,7 +272,7 @@ async function collectLinks(): Promise<ItemLink[] | undefined> {
 }
 
 async function findClosedDeals(links: ItemLink[]): Promise<ClosedDeal[]> {
-  console.log('Starting to filter closed deals...');
+  console.log('Starting to filter sold deals...');
   const closedDeals: ClosedDeal[] = [];
   
   // Load existing progress if available
