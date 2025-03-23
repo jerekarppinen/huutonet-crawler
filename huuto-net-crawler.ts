@@ -52,15 +52,17 @@ async function setupPage(browser: Browser): Promise<Page> {
   });
   
   // Randomize the timing of the navigation
-  await page.setDefaultNavigationTimeout(90000);
+  await page.setDefaultNavigationTimeout(45000);
   
   return page;
 }
 
 // Function to add random delay to mimic human behavior
 async function randomDelay(min: number, max: number): Promise<void> {
-  const delay = Math.floor(Math.random() * (max - min + 1)) + min;
-  return new Promise(resolve => setTimeout(resolve, delay));
+    min = Math.floor(min / 2);
+    max = Math.floor(max / 2);
+    const delay = Math.floor(Math.random() * (max - min + 1)) + min;
+    return new Promise(resolve => setTimeout(resolve, delay));
 }
 
 // Function to scroll down the page gradually with random behavior
@@ -382,8 +384,36 @@ async function findClosedDeals(links: ItemLink[]): Promise<ClosedDeal[]> {
   return closedDeals;
 }
 
+// Helper function to format elapsed time
+function formatElapsedTime(milliseconds: number): string {
+  const seconds = Math.floor(milliseconds / 1000);
+  const minutes = Math.floor(seconds / 60);
+  const hours = Math.floor(minutes / 60);
+  
+  const remainingMinutes = minutes % 60;
+  const remainingSeconds = seconds % 60;
+  
+  let result = '';
+  
+  if (hours > 0) {
+    result += `${hours} hour${hours !== 1 ? 's' : ''} `;
+  }
+  
+  if (remainingMinutes > 0 || hours > 0) {
+    result += `${remainingMinutes} minute${remainingMinutes !== 1 ? 's' : ''} `;
+  }
+  
+  result += `${remainingSeconds} second${remainingSeconds !== 1 ? 's' : ''}`;
+  
+  return result;
+}
+
 // Main execution
 (async () => {
+  // Start the timer
+  const startTime = Date.now();
+  console.log(`Script started at: ${new Date(startTime).toLocaleString()}`);
+  
   try {
     // Check if we have existing links
     let links: ItemLink[] | undefined;
@@ -429,5 +459,16 @@ async function findClosedDeals(links: ItemLink[]): Promise<ClosedDeal[]> {
     }
   } catch (error) {
     console.error('An unexpected error occurred:', error);
+  } finally {
+    // End the timer and calculate elapsed time
+    const endTime = Date.now();
+    const elapsedTime = endTime - startTime;
+    
+    console.log(`\n========= SCRIPT EXECUTION SUMMARY =========`);
+    console.log(`Script started at: ${new Date(startTime).toLocaleString()}`);
+    console.log(`Script ended at: ${new Date(endTime).toLocaleString()}`);
+    console.log(`Total execution time: ${formatElapsedTime(elapsedTime)}`);
+    console.log(`Total execution time in milliseconds: ${elapsedTime}`);
+    console.log(`============================================`);
   }
 })();
