@@ -11,7 +11,7 @@ interface ItemLink {
   text: string;
 }
 
-interface ClosedDeal extends ItemLink {
+interface SoldDeal extends ItemLink {
   title: string;
   closedDate?: string;
   price?: string;
@@ -271,18 +271,18 @@ async function collectLinks(): Promise<ItemLink[] | undefined> {
   }
 }
 
-async function findClosedDeals(links: ItemLink[]): Promise<ClosedDeal[]> {
+async function findClosedDeals(links: ItemLink[]): Promise<SoldDeal[]> {
   console.log('Starting to filter sold deals...');
-  const closedDeals: ClosedDeal[] = [];
+  const soldDeals: SoldDeal[] = [];
   
   // Load existing progress if available
   let startIndex = 0;
   try {
     const existingData = await fs.readFile('huuto_sold_deals_progress.json', 'utf-8');
-    const existingDeals: ClosedDeal[] = JSON.parse(existingData);
+    const existingDeals: SoldDeal[] = JSON.parse(existingData);
     
     if (existingDeals && existingDeals.length > 0) {
-      closedDeals.push(...existingDeals);
+      soldDeals.push(...existingDeals);
       
       // Find the last processed URL
       const lastProcessedUrl = existingDeals[existingDeals.length - 1].href;
@@ -347,13 +347,13 @@ async function findClosedDeals(links: ItemLink[]): Promise<ClosedDeal[]> {
             return { title, price, closedDate };
           });
           
-          closedDeals.push({
+          soldDeals.push({
             ...links[i],
             ...dealInfo
           });
           
           // Save progress after each closed deal is found
-          await fs.writeFile('huuto_sold_deals_progress.json', JSON.stringify(closedDeals, null, 2));
+          await fs.writeFile('huuto_sold_deals_progress.json', JSON.stringify(soldDeals, null, 2));
         }
       } catch (pageError) {
         console.error(`Error processing link ${links[i].href}:`, pageError);
@@ -375,13 +375,13 @@ async function findClosedDeals(links: ItemLink[]): Promise<ClosedDeal[]> {
     }
   }
   
-  console.log(`Found ${closedDeals.length} closed deals out of ${links.length} total links`);
+  console.log(`Found ${soldDeals.length} sold deals out of ${links.length} total links`);
   
-  // Save the closed deals to a JSON file
-  await fs.writeFile('huuto_closed_deals.json', JSON.stringify(closedDeals, null, 2));
-  console.log('Closed deals saved to huuto_closed_deals.json');
+  // Save the sold deals to a JSON file
+  await fs.writeFile('huuto_sold_deals.json', JSON.stringify(soldDeals, null, 2));
+  console.log('Sold deals saved to huuto_sold_deals.json');
   
-  return closedDeals;
+  return soldDeals;
 }
 
 // Helper function to format elapsed time
@@ -453,7 +453,7 @@ function formatElapsedTime(milliseconds: number): string {
     // Process closed deals
     if (links && links.length > 0) {
       const closedDeals = await findClosedDeals(links);
-      console.log(`Successfully identified ${closedDeals.length} closed deals.`);
+      console.log(`Successfully identified ${closedDeals.length} sold deals.`);
     } else {
       console.error('No links available to process.');
     }
