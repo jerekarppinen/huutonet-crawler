@@ -271,7 +271,7 @@ async function collectLinks(): Promise<ItemLink[] | undefined> {
   }
 }
 
-async function findClosedDeals(links: ItemLink[]): Promise<SoldDeal[]> {
+async function findSoldDeals(links: ItemLink[]): Promise<SoldDeal[]> {
   console.log('Starting to filter sold deals...');
   const soldDeals: SoldDeal[] = [];
   
@@ -452,7 +452,7 @@ function formatElapsedTime(milliseconds: number): string {
     
     // Process closed deals
     if (links && links.length > 0) {
-      const closedDeals = await findClosedDeals(links);
+      const closedDeals = await findSoldDeals(links);
       console.log(`Successfully identified ${closedDeals.length} sold deals.`);
     } else {
       console.error('No links available to process.');
