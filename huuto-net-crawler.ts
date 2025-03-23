@@ -1,4 +1,3 @@
-// huuto-net-crawler.ts
 import puppeteer from 'puppeteer-extra';
 import { Browser, Page } from 'puppeteer';
 import * as fs from 'fs/promises';
@@ -15,6 +14,11 @@ interface SoldDeal extends ItemLink {
   title: string;
   closedDate?: string;
   price?: string;
+}
+
+interface ProgressTracker {
+  lastCheckedIndex: number;
+  soldDeals: SoldDeal[];
 }
 
 // Create a reusable function to launch a browser with anti-detection settings
@@ -273,29 +277,45 @@ async function collectLinks(): Promise<ItemLink[] | undefined> {
 
 async function findSoldDeals(links: ItemLink[]): Promise<SoldDeal[]> {
   console.log('Starting to filter sold deals...');
-  const soldDeals: SoldDeal[] = [];
+  
+  // Initialize progress tracker with defaults
+  let progressTracker: ProgressTracker = {
+    lastCheckedIndex: -1,
+    soldDeals: []
+  };
   
   // Load existing progress if available
-  let startIndex = 0;
   try {
-    const existingData = await fs.readFile('huuto_sold_deals_progress.json', 'utf-8');
-    const existingDeals: SoldDeal[] = JSON.parse(existingData);
+    const existingData = await fs.readFile('huuto_progress_tracker.json', 'utf-8');
+    progressTracker = JSON.parse(existingData);
     
-    if (existingDeals && existingDeals.length > 0) {
-      soldDeals.push(...existingDeals);
-      
-      // Find the last processed URL
-      const lastProcessedUrl = existingDeals[existingDeals.length - 1].href;
-      const lastIndex = links.findIndex(link => link.href === lastProcessedUrl);
-      
-      if (lastIndex !== -1) {
-        startIndex = lastIndex + 1;
-        console.log(`Resuming from index ${startIndex} (after ${lastProcessedUrl})`);
-      }
-    }
+    console.log(`Loaded existing progress: Last checked index: ${progressTracker.lastCheckedIndex}, Found sold deals: ${progressTracker.soldDeals.length}`);
+    
+    // Ask for confirmation
+    const readline = require('readline').createInterface({
+      input: process.stdin,
+      output: process.stdout
+    });
+    
+    await new Promise<void>((resolve) => {
+      readline.question(`Continue from link #${progressTracker.lastCheckedIndex + 1}? (yes/no): `, (answer: string) => {
+        if (answer.toLowerCase() !== 'yes') {
+          progressTracker.lastCheckedIndex = -1;
+          console.log('Starting from the beginning.');
+        } else {
+          console.log(`Continuing from link #${progressTracker.lastCheckedIndex + 1}`);
+        }
+        readline.close();
+        resolve();
+      });
+    });
+    
   } catch (err) {
-    console.log('No existing progress file found, starting from beginning.');
+    console.log('No existing progress file found, starting from the beginning.');
   }
+  
+  // Start from the next unchecked link
+  const startIndex = progressTracker.lastCheckedIndex + 1;
   
   for (let i = startIndex; i < links.length; i++) {
     console.log(`Checking link ${i+1}/${links.length}: ${links[i].href}`);
@@ -347,14 +367,22 @@ async function findSoldDeals(links: ItemLink[]): Promise<SoldDeal[]> {
             return { title, price, closedDate };
           });
           
-          soldDeals.push({
+          // Add the deal to our collection
+          progressTracker.soldDeals.push({
             ...links[i],
             ...dealInfo
           });
-          
-          // Save progress after each closed deal is found
-          await fs.writeFile('huuto_sold_deals_progress.json', JSON.stringify(soldDeals, null, 2));
         }
+        
+        // Update last checked index regardless of whether it was a sold deal
+        progressTracker.lastCheckedIndex = i;
+        
+        // Save progress after each link is checked
+        await fs.writeFile('huuto_progress_tracker.json', JSON.stringify(progressTracker, null, 2));
+        
+        // Also save sold deals separately for convenience
+        await fs.writeFile('huuto_sold_deals.json', JSON.stringify(progressTracker.soldDeals, null, 2));
+        
       } catch (pageError) {
         console.error(`Error processing link ${links[i].href}:`, pageError);
         
@@ -375,13 +403,9 @@ async function findSoldDeals(links: ItemLink[]): Promise<SoldDeal[]> {
     }
   }
   
-  console.log(`Found ${soldDeals.length} sold deals out of ${links.length} total links`);
+  console.log(`Found ${progressTracker.soldDeals.length} sold deals out of ${links.length} total links`);
   
-  // Save the sold deals to a JSON file
-  await fs.writeFile('huuto_sold_deals.json', JSON.stringify(soldDeals, null, 2));
-  console.log('Sold deals saved to huuto_sold_deals.json');
-  
-  return soldDeals;
+  return progressTracker.soldDeals;
 }
 
 // Helper function to format elapsed time

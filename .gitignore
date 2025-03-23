@@ -1,3 +1,4 @@
 node_modules
 huuto_all_links.json
-huuto_closed_deals_progress.json
+huuto_progress_tracker.json
+huuto_sold_deals.json
