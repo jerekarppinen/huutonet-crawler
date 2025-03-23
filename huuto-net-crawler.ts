@@ -278,7 +278,7 @@ async function findClosedDeals(links: ItemLink[]): Promise<ClosedDeal[]> {
   // Load existing progress if available
   let startIndex = 0;
   try {
-    const existingData = await fs.readFile('huuto_closed_deals_progress.json', 'utf-8');
+    const existingData = await fs.readFile('huuto_sold_deals_progress.json', 'utf-8');
     const existingDeals: ClosedDeal[] = JSON.parse(existingData);
     
     if (existingDeals && existingDeals.length > 0) {
@@ -309,7 +309,7 @@ async function findClosedDeals(links: ItemLink[]): Promise<ClosedDeal[]> {
       
       try {
         // Add random delay before visiting the page
-        await randomDelay(3000, 6000);
+        await randomDelay(1500, 3000);
         
         // Navigate to the page
         await page.goto(links[i].href, { waitUntil: 'networkidle2', timeout: 30000 });
@@ -353,7 +353,7 @@ async function findClosedDeals(links: ItemLink[]): Promise<ClosedDeal[]> {
           });
           
           // Save progress after each closed deal is found
-          await fs.writeFile('huuto_closed_deals_progress.json', JSON.stringify(closedDeals, null, 2));
+          await fs.writeFile('huuto_sold_deals_progress.json', JSON.stringify(closedDeals, null, 2));
         }
       } catch (pageError) {
         console.error(`Error processing link ${links[i].href}:`, pageError);
@@ -361,7 +361,7 @@ async function findClosedDeals(links: ItemLink[]): Promise<ClosedDeal[]> {
         // If we encounter a Cloudflare challenge, wait longer before continuing
         if (pageError instanceof Error && (pageError.message.includes('timeout') || pageError.message.includes('Navigation failed'))) {
           console.log('Possible anti-bot challenge detected. Adding extra delay...');
-          await randomDelay(20000, 30000);
+          await randomDelay(10000, 20000);
         }
       }
     } catch (error) {
