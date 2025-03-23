@@ -193,8 +193,6 @@ async function collectLinks(): Promise<ItemLink[] | undefined> {
     
     console.log('=== PAGINATION DETECTION RESULTS ===');
     console.log(`Pagination found: ${paginationInfo.paginationFound}`);
-    console.log(`Number of pagination links: ${paginationInfo.linkCount || 0}`);
-    console.log(`Page numbers detected: ${JSON.stringify(paginationInfo.pageNumbers || [])}`);
     console.log(`Maximum page number: ${paginationInfo.maxPages}`);
     console.log('===================================');
     
@@ -337,15 +335,11 @@ async function findClosedDeals(links: ItemLink[]): Promise<ClosedDeal[]> {
             const title = document.querySelector('h1')?.innerText.trim() || 'Unknown Title';
             
             // Try to find price information
-            const priceElement = document.querySelector('.price') || 
-                                document.querySelector('.final-price') || 
-                                document.querySelector('[class*="price"]');
+            const priceElement = document.querySelector('.price');
             const price = priceElement ? (priceElement as HTMLElement).innerText.trim() : undefined;
             
             // Try to find closed date
-            const dateElement = document.querySelector('.closing-time') || 
-                               document.querySelector('.end-time') || 
-                               document.querySelector('[class*="time"]');
+            const dateElement = document.querySelector('.closing-info');
             const closedDate = dateElement ? (dateElement as HTMLElement).innerText.trim() : undefined;
             
             return { title, price, closedDate };
