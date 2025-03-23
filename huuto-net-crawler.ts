@@ -468,7 +468,6 @@ function formatElapsedTime(milliseconds: number): string {
     console.log(`Script started at: ${new Date(startTime).toLocaleString()}`);
     console.log(`Script ended at: ${new Date(endTime).toLocaleString()}`);
     console.log(`Total execution time: ${formatElapsedTime(elapsedTime)}`);
-    console.log(`Total execution time in milliseconds: ${elapsedTime}`);
     console.log(`============================================`);
   }
 })();
