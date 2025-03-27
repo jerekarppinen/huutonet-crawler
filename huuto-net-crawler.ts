@@ -154,13 +154,13 @@ async function collectLinks(maxPages: number = Infinity): Promise<ItemLink[] | u
     console.log(`Navigating to first page: ${currentUrl}`);
     
     // Add random delay before first navigation
-    await randomDelay(500, 1000, 'delay before first navigation');
+    await randomDelay(250, 500, 'delay before first navigation');
     
     // Navigate to the page
     await page.goto(currentUrl, { waitUntil: 'networkidle2' });
     
     // Add a random delay to seem more human-like
-    await randomDelay(1500, 3000, 'delay to humanize action');
+    await randomDelay(750, 1500, 'delay to humanize action');
 
     // Handle cookie consent if it appears
     await handleCookieConsent(page);
@@ -174,9 +174,9 @@ async function collectLinks(maxPages: number = Infinity): Promise<ItemLink[] | u
       
       if (pageNum > 1) {
         // Already loaded page 1
-        await randomDelay(750, 1000, 'delay before goto');
+        await randomDelay(300, 500, 'delay before goto');
         await page.goto(currentUrl, { waitUntil: 'networkidle2' });
-        await randomDelay(500, 750, 'delay after goto');
+        await randomDelay(250, 500, 'delay after goto');
         
         // Handle cookie consent if it appears again
         await handleCookieConsent(page);
@@ -211,7 +211,7 @@ async function collectLinks(maxPages: number = Infinity): Promise<ItemLink[] | u
       if (pageNum <= maxPages) {
         currentUrl = `https://www.huuto.net/haku/status/closed/page/${pageNum}/sort/newest/category/11`;
         // Add a slightly longer delay between page navigations
-        await randomDelay(4000, 7000, 'delay to wait between page naviations: ');
+        await randomDelay(2000, 3000, 'delay to wait between page naviations: ');
       }
     } while (pageNum <= maxPages);
     
@@ -346,7 +346,7 @@ async function findSoldDeals(links: ItemLink[], maxDealsToProcess: number = Infi
         // If we encounter a Cloudflare challenge, wait longer before continuing
         if (pageError instanceof Error && (pageError.message.includes('timeout') || pageError.message.includes('Navigation failed'))) {
           console.log('Possible anti-bot challenge detected. Adding extra delay...');
-          await randomDelay(10000, 20000, 'delay for anti-bot challenge');
+          await randomDelay(500, 10000, 'delay for anti-bot challenge');
         }
       }
     } catch (error) {
@@ -356,7 +356,7 @@ async function findSoldDeals(links: ItemLink[], maxDealsToProcess: number = Infi
       await browser.close();
       
       // Add a longer random delay between browser instances
-      await randomDelay(2500, 5000, 'delay between browser instances');
+      await randomDelay(1000, 1500, 'delay between browser instances');
     }
   }
   
