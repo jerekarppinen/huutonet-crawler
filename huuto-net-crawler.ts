@@ -133,7 +133,7 @@ async function handleCookieConsent(page: Page): Promise<void> {
   });
 }
 
-async function collectLinks(): Promise<ItemLink[] | undefined> {
+async function collectLinks(maxPages: number = Infinity): Promise<ItemLink[] | undefined> {
   // Store all collected links
   const allLinks: ItemLink[] = [];
   
@@ -144,11 +144,10 @@ async function collectLinks(): Promise<ItemLink[] | undefined> {
     const page = await setupPage(browser);
     
     // Initial URL - start from page 1
-    let currentUrl: string = 'https://www.huuto.net/haku/status/closed/page/1/sort/newest/category/11';
+    let currentUrl: string = 'https://www.huuto.net/haku/status/closed/page/1/sort/newest/category/110';
     let pageNum: number = 1;
-    let maxPages: number = 0;
     
-    console.log('Starting to collect links from Huuto.net...');
+    console.log(`Starting to collect links from Huuto.net (max pages: ${maxPages})...`);
     console.log(`Navigating to first page: ${currentUrl}`);
     
     // Add random delay before first navigation
@@ -166,53 +165,7 @@ async function collectLinks(): Promise<ItemLink[] | undefined> {
     // Scroll down a bit to load any lazy-loaded content
     await autoScroll(page);
     
-    // Get detailed pagination information on first run
-    const paginationInfo = await page.evaluate(() => {
-      const paginationElement = document.querySelector('#pagination');
-      if (!paginationElement) {
-        return { maxPages: 0, paginationFound: false, html: 'No pagination found' };
-      }
-      
-      // Get the HTML of the pagination for debugging
-      const paginationHtml = paginationElement.outerHTML;
-      
-      // Get all page number links
-      const pageLinks = document.querySelectorAll('#pagination li.next_pages a, #pagination li.current');
-      
-      // Extract the page numbers
-      const pageNumbers = Array.from(pageLinks).map(el => {
-        const num = parseInt(el.textContent?.trim() || '0');
-        return isNaN(num) ? 0 : num;
-      });
-      
-      // Find the maximum page number
-      const maxPages = pageNumbers.length > 0 ? Math.max(...pageNumbers) : 0;
-      
-      return { 
-        maxPages, 
-        paginationFound: true, 
-        pageNumbers,
-        linkCount: pageLinks.length,
-        html: paginationHtml 
-      };
-    });
-    
-    console.log('=== PAGINATION DETECTION RESULTS ===');
-    console.log(`Pagination found: ${paginationInfo.paginationFound}`);
-    console.log(`Maximum page number: ${paginationInfo.maxPages}`);
-    console.log('===================================');
-    
-    // Set the maximum number of pages
-    maxPages = paginationInfo.maxPages;
-    
-    if (maxPages === 0) {
-      console.warn('WARNING: No pagination detected or only one page exists.');
-      maxPages = 1; // Process at least the current page
-    }
-    
-    console.log(`Will process ${maxPages} pages in total.`);
-    
-    // Process all pages
+    // Process all pages up to maxPages
     do {
       console.log(`\nProcessing page ${pageNum}/${maxPages}: ${currentUrl}`);
       
@@ -275,8 +228,9 @@ async function collectLinks(): Promise<ItemLink[] | undefined> {
   }
 }
 
-async function findSoldDeals(links: ItemLink[]): Promise<SoldDeal[]> {
-  console.log('Starting to filter sold deals...');
+
+async function findSoldDeals(links: ItemLink[], maxDealsToProcess: number = Infinity): Promise<SoldDeal[]> {
+  console.log(`Starting to filter sold deals (max deals to process: ${maxDealsToProcess})...`);
   
   // Initialize progress tracker with defaults
   let progressTracker: ProgressTracker = {
@@ -317,7 +271,7 @@ async function findSoldDeals(links: ItemLink[]): Promise<SoldDeal[]> {
   // Start from the next unchecked link
   const startIndex = progressTracker.lastCheckedIndex + 1;
   
-  for (let i = startIndex; i < links.length; i++) {
+  for (let i = startIndex; i < links.length && progressTracker.soldDeals.length < maxDealsToProcess; i++) {
     console.log(`Checking link ${i+1}/${links.length}: ${links[i].href}`);
     
     // Create a new browser instance for each link
@@ -439,6 +393,10 @@ function formatElapsedTime(milliseconds: number): string {
   console.log(`Script started at: ${new Date(startTime).toLocaleString()}`);
   
   try {
+    // Configurable parameters
+    const MAX_PAGES_TO_CRAWL = 2;  // User can set this to limit page count
+    const MAX_DEALS_TO_PROCESS = Infinity;  // User can set this to limit deals
+
     // Check if we have existing links
     let links: ItemLink[] | undefined;
     
@@ -469,14 +427,14 @@ function formatElapsedTime(milliseconds: number): string {
       console.log('No existing links file found, will collect links.');
     }
     
-    // Collect links if needed
+    // Collect links if needed, with page limit
     if (!links || links.length === 0) {
-      links = await collectLinks();
+      links = await collectLinks(MAX_PAGES_TO_CRAWL);
     }
     
-    // Process closed deals
+    // Process closed deals with max deals limit
     if (links && links.length > 0) {
-      const closedDeals = await findSoldDeals(links);
+      const closedDeals = await findSoldDeals(links, MAX_DEALS_TO_PROCESS);
       console.log(`Successfully identified ${closedDeals.length} sold deals.`);
     } else {
       console.error('No links available to process.');
