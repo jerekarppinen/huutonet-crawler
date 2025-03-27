@@ -136,7 +136,7 @@ async function handleCookieConsent(page: Page): Promise<void> {
   });
 }
 
-async function collectLinks(maxPages: number = Infinity): Promise<ItemLink[] | undefined> {
+async function collectLinks(maxPages: number = Infinity, enableDelayBetweenActions: boolean = false): Promise<ItemLink[] | undefined> {
   // Store all collected links
   const allLinks: ItemLink[] = [];
   
@@ -154,14 +154,19 @@ async function collectLinks(maxPages: number = Infinity): Promise<ItemLink[] | u
     console.log(`Navigating to first page: ${currentUrl}`);
     
     // Add random delay before first navigation
-    await randomDelay(100, 200, 'delay before first navigation');
+    if(enableDelayBetweenActions) {
+      await randomDelay(100, 200, 'delay before first navigation');
+    }
+    
     
     // Navigate to the page
     await page.goto(currentUrl, { waitUntil: 'networkidle2' });
     
     // Add a random delay to seem more human-like
-    await randomDelay(300, 750, 'delay to humanize action');
-
+    if(enableDelayBetweenActions) {
+      await randomDelay(300, 750, 'delay to humanize action');
+    }
+    
     // Handle cookie consent if it appears
     await handleCookieConsent(page);
     
@@ -174,9 +179,16 @@ async function collectLinks(maxPages: number = Infinity): Promise<ItemLink[] | u
       
       if (pageNum > 1) {
         // Already loaded page 1
-        await randomDelay(150, 250, 'delay before goto');
+        if(enableDelayBetweenActions) {
+          await randomDelay(150, 250, 'delay before goto');
+        }
+        
         await page.goto(currentUrl, { waitUntil: 'networkidle2' });
-        await randomDelay(100, 250, 'delay after goto');
+
+        if(enableDelayBetweenActions) {
+          await randomDelay(100, 250, 'delay after goto');
+        }
+        
         
         // Handle cookie consent if it appears again
         await handleCookieConsent(page);
@@ -211,7 +223,9 @@ async function collectLinks(maxPages: number = Infinity): Promise<ItemLink[] | u
       if (pageNum <= maxPages) {
         currentUrl = `https://www.huuto.net/haku/status/closed/page/${pageNum}/sort/newest/category/11`;
         // Add a slightly longer delay between page navigations
-        await randomDelay(1000, 2000, 'delay to wait between page naviations: ');
+        if(enableDelayBetweenActions) {
+          await randomDelay(1000, 2000, 'delay to wait between page naviations: ');
+        }
       }
     } while (pageNum <= maxPages);
     
@@ -232,7 +246,7 @@ async function collectLinks(maxPages: number = Infinity): Promise<ItemLink[] | u
 }
 
 
-async function findSoldDeals(links: ItemLink[], maxDealsToProcess: number = Infinity): Promise<SoldDeal[]> {
+async function findSoldDeals(links: ItemLink[], maxDealsToProcess: number = Infinity, enableDelayBetweenActions: boolean = false): Promise<SoldDeal[]> {
   console.log(`Starting to filter sold deals (max deals to process: ${maxDealsToProcess})...`);
   
   // Initialize progress tracker with defaults
@@ -286,7 +300,10 @@ async function findSoldDeals(links: ItemLink[], maxDealsToProcess: number = Infi
       
       try {
         // Add random delay before visiting the page
-        await randomDelay(750, 1500, 'delay before visiting the page');
+        if(enableDelayBetweenActions) { 
+          await randomDelay(750, 1500, 'delay before visiting the page');
+        }
+        
         
         // Navigate to the page
         await page.goto(links[i].href, { waitUntil: 'networkidle2', timeout: 30000 });
@@ -295,7 +312,9 @@ async function findSoldDeals(links: ItemLink[], maxDealsToProcess: number = Infi
         await handleCookieConsent(page);
         
         // Add random delay to simulate reading
-        await randomDelay(1000, 2000, 'delay to simulate reading');
+        if(enableDelayBetweenActions) {
+          await randomDelay(1000, 2000, 'delay to simulate reading');
+        }
         
         // Scroll down a bit to look more human-like
         await autoScroll(page);
@@ -346,7 +365,9 @@ async function findSoldDeals(links: ItemLink[], maxDealsToProcess: number = Infi
         // If we encounter a Cloudflare challenge, wait longer before continuing
         if (pageError instanceof Error && (pageError.message.includes('timeout') || pageError.message.includes('Navigation failed'))) {
           console.log('Possible anti-bot challenge detected. Adding extra delay...');
-          await randomDelay(500, 10000, 'delay for anti-bot challenge');
+          if(enableDelayBetweenActions) {
+            await randomDelay(500, 10000, 'delay for anti-bot challenge');
+          }
         }
       }
     } catch (error) {
@@ -356,10 +377,13 @@ async function findSoldDeals(links: ItemLink[], maxDealsToProcess: number = Infi
       await browser.close();
       
       // Add a longer random delay between browser instances
-      await randomDelay(500, 750, 'delay between browser instances');
+      if(enableDelayBetweenActions) {
+        await randomDelay(500, 750, 'delay between browser instances');
+      }
     }
   }
   
+  console.log('')
   console.log(`Found ${progressTracker.soldDeals.length} sold deals out of ${links.length} total links`);
   
   return progressTracker.soldDeals;
@@ -390,15 +414,17 @@ function formatElapsedTime(milliseconds: number): string {
 }
 
 // Main execution
-(async () => {
+async function main() {
+
   // Start the timer
   const startTime = Date.now();
   console.log(`Script started at: ${new Date(startTime).toLocaleString()}`);
   
   try {
     // Configurable parameters
-    const MAX_PAGES_TO_CRAWL = 1;  // User can set this to limit page count
-    const MAX_DEALS_TO_PROCESS = Infinity;  // User can set this to limit deals
+    const MAX_PAGES_TO_CRAWL: number = 2;  
+    const MAX_DEALS_TO_PROCESS: number = Infinity;
+    const ENABLE_DELAY_BETWEEN_ACTIONS: boolean = false
 
     // Check if we have existing links
     let links: ItemLink[] | undefined;
@@ -437,7 +463,7 @@ function formatElapsedTime(milliseconds: number): string {
     
     // Process closed deals with max deals limit
     if (links && links.length > 0) {
-      const closedDeals = await findSoldDeals(links, MAX_DEALS_TO_PROCESS);
+      const closedDeals = await findSoldDeals(links, MAX_DEALS_TO_PROCESS, ENABLE_DELAY_BETWEEN_ACTIONS);
       console.log(`Successfully identified ${closedDeals.length} sold deals.`);
     } else {
       console.error('No links available to process.');
@@ -455,4 +481,6 @@ function formatElapsedTime(milliseconds: number): string {
     console.log(`Total execution time: ${formatElapsedTime(elapsedTime)}`);
     console.log(`============================================`);
   }
-})();
+};
+
+main().catch(console.error);

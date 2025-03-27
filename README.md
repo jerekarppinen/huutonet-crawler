@@ -1,5 +1,5 @@
 **How to run**
 
-`npm install`
+`pnpm install`
 
 `npx ts-node huuto-net-crawler.ts`
