@@ -62,10 +62,13 @@ async function setupPage(browser: Browser): Promise<Page> {
 }
 
 // Function to add random delay to mimic human behavior
-async function randomDelay(min: number, max: number): Promise<void> {
-    min = Math.floor(min / 2);
-    max = Math.floor(max / 2);
+async function randomDelay(min: number, max: number, message: string = 'delay'): Promise<void> {
     const delay = Math.floor(Math.random() * (max - min + 1)) + min;
+    console.log('---')
+    console.log('min', min)
+    console.log('max', max)
+    console.log(`${message} ${delay}`)
+    console.log('---')
     return new Promise(resolve => setTimeout(resolve, delay));
 }
 
@@ -151,13 +154,13 @@ async function collectLinks(maxPages: number = Infinity): Promise<ItemLink[] | u
     console.log(`Navigating to first page: ${currentUrl}`);
     
     // Add random delay before first navigation
-    await randomDelay(2000, 4000);
+    await randomDelay(500, 1000, 'delay before first navigation');
     
     // Navigate to the page
     await page.goto(currentUrl, { waitUntil: 'networkidle2' });
     
     // Add a random delay to seem more human-like
-    await randomDelay(1500, 3000);
+    await randomDelay(1500, 3000, 'delay to humanize action');
 
     // Handle cookie consent if it appears
     await handleCookieConsent(page);
@@ -171,9 +174,9 @@ async function collectLinks(maxPages: number = Infinity): Promise<ItemLink[] | u
       
       if (pageNum > 1) {
         // Already loaded page 1
-        await randomDelay(3000, 5000);
+        await randomDelay(750, 1000, 'delay before goto');
         await page.goto(currentUrl, { waitUntil: 'networkidle2' });
-        await randomDelay(1500, 3000);
+        await randomDelay(500, 750, 'delay after goto');
         
         // Handle cookie consent if it appears again
         await handleCookieConsent(page);
@@ -208,7 +211,7 @@ async function collectLinks(maxPages: number = Infinity): Promise<ItemLink[] | u
       if (pageNum <= maxPages) {
         currentUrl = `https://www.huuto.net/haku/status/closed/page/${pageNum}/sort/newest/category/11`;
         // Add a slightly longer delay between page navigations
-        await randomDelay(4000, 7000);
+        await randomDelay(4000, 7000, 'delay to wait between page naviations: ');
       }
     } while (pageNum <= maxPages);
     
@@ -283,7 +286,7 @@ async function findSoldDeals(links: ItemLink[], maxDealsToProcess: number = Infi
       
       try {
         // Add random delay before visiting the page
-        await randomDelay(1500, 3000);
+        await randomDelay(1500, 3000, 'delay before visiting the page');
         
         // Navigate to the page
         await page.goto(links[i].href, { waitUntil: 'networkidle2', timeout: 30000 });
@@ -292,7 +295,7 @@ async function findSoldDeals(links: ItemLink[], maxDealsToProcess: number = Infi
         await handleCookieConsent(page);
         
         // Add random delay to simulate reading
-        await randomDelay(2000, 4000);
+        await randomDelay(2000, 4000, 'delay to simulate reading');
         
         // Scroll down a bit to look more human-like
         await autoScroll(page);
@@ -343,7 +346,7 @@ async function findSoldDeals(links: ItemLink[], maxDealsToProcess: number = Infi
         // If we encounter a Cloudflare challenge, wait longer before continuing
         if (pageError instanceof Error && (pageError.message.includes('timeout') || pageError.message.includes('Navigation failed'))) {
           console.log('Possible anti-bot challenge detected. Adding extra delay...');
-          await randomDelay(10000, 20000);
+          await randomDelay(10000, 20000, 'delay for anti-bot challenge');
         }
       }
     } catch (error) {
@@ -353,7 +356,7 @@ async function findSoldDeals(links: ItemLink[], maxDealsToProcess: number = Infi
       await browser.close();
       
       // Add a longer random delay between browser instances
-      await randomDelay(5000, 10000);
+      await randomDelay(2500, 5000, 'delay between browser instances');
     }
   }
   
@@ -394,7 +397,7 @@ function formatElapsedTime(milliseconds: number): string {
   
   try {
     // Configurable parameters
-    const MAX_PAGES_TO_CRAWL = 2;  // User can set this to limit page count
+    const MAX_PAGES_TO_CRAWL = 1;  // User can set this to limit page count
     const MAX_DEALS_TO_PROCESS = Infinity;  // User can set this to limit deals
 
     // Check if we have existing links
