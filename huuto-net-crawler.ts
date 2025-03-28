@@ -8,9 +8,10 @@ puppeteer.use(StealthPlugin());
 interface ItemLink {
   href: string;
   text: string;
+  price: number;
 }
 
-interface SoldDeal extends ItemLink {
+interface SoldDeal {
   title: string;
   closedDate?: string;
   price?: string;
@@ -206,11 +207,12 @@ async function collectLinks(RUNTIME_CONF: RuntimeConfig): Promise<ItemLink[] | u
       // Wait for items to be visible
       await page.waitForSelector('.item-card-link', { timeout: 10000 })
         .catch(() => console.log('Warning: Item links selector timeout - page might be empty or structure changed'));
+
       
       // Get all the links with the specified class
-      const links: ItemLink[] = await page.evaluate(() => {
+      const links: ItemLink[] = await page.evaluate((RUNTIME_CONF: RuntimeConfig) => {
 
-        const cleanPrice = (price: string): Number =>  {
+        const cleanPrice = (price: string): number =>  {
           const euroSymbolStripped = price.replace('€', '')
           const replaceComma = euroSymbolStripped.replace(',', '.')
           return Number(replaceComma)
@@ -224,14 +226,16 @@ async function collectLinks(RUNTIME_CONF: RuntimeConfig): Promise<ItemLink[] | u
           const itemPriceString = el.querySelector('.item-card__price')?.textContent ?? '';
 
           const itemPrice = cleanPrice(itemPriceString)
-
-          return {
-            href: (el as HTMLAnchorElement).href,
-            text: el.textContent?.trim() || '',
-            price: itemPrice
-          };
-        });
-      });
+          
+          if(itemPrice >= RUNTIME_CONF.MIN_PRICE && itemPrice <= RUNTIME_CONF.MAX_PRICE) {
+            return {
+              href: (el as HTMLAnchorElement).href,
+              text: el.textContent?.trim() || '',
+              price: itemPrice
+            };
+          }
+        }).filter((item): item is ItemLink => item !== undefined); // Filter out undefined values
+      }, RUNTIME_CONF);
       
       console.log(`Found ${links.length} links on page ${pageNum}`);
       
@@ -241,7 +245,7 @@ async function collectLinks(RUNTIME_CONF: RuntimeConfig): Promise<ItemLink[] | u
       // Move to next page
       pageNum++;
       if (pageNum <= RUNTIME_CONF.MAX_PAGES_TO_CRAWL) {
-        currentUrl = `https://www.huuto.net/haku/status/closed/page/${pageNum}/sort/newest/category/11`;
+        currentUrl = `https://www.huuto.net/haku/status/closed/page/${pageNum}/sort/newest/category/110`;
         // Add a slightly longer delay between page navigations
         if(RUNTIME_CONF.ENABLE_DELAY_BETWEEN_ACTIONS) {
           await randomDelay(1000, 2000, 'delay to wait between page naviations: ');
@@ -436,6 +440,8 @@ interface RuntimeConfig {
   ENABLE_DELAY_BETWEEN_ACTIONS: boolean;
   MAX_PAGES_TO_CRAWL: number;
   START_PAGE_NUMBER: number;
+  MIN_PRICE: number;
+  MAX_PRICE: number;
 }
 
 // Main execution
@@ -448,10 +454,12 @@ async function main() {
   try {
     // Configurable parameters
 
-    const RUNTIME_CONF = {
-      MAX_PAGES_TO_CRAWL: 2,
+    const RUNTIME_CONF: RuntimeConfig = {
+      MAX_PAGES_TO_CRAWL: 1,
       ENABLE_DELAY_BETWEEN_ACTIONS: false,
-      START_PAGE_NUMBER: 1
+      START_PAGE_NUMBER: 1,
+      MIN_PRICE: 1.5,
+      MAX_PRICE: 24.9
     }
 
     const MAX_DEALS_TO_PROCESS: number = Infinity;
