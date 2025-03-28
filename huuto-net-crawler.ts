@@ -39,7 +39,13 @@ async function launchBrowser(): Promise<Browser> {
 // Create a function to set up a page with anti-detection measures
 async function setupPage(browser: Browser): Promise<Page> {
   const page = await browser.newPage();
-  
+
+  // Helper to enable logging for nodejs
+  await page.exposeFunction('logInNodeJs', (value: unknown) => console.log(value));
+  // Usage:
+  // @ts-ignore
+  // logInNodeJs(1234)
+
   // Set a realistic viewport
   await page.setViewport({ width: 1920, height: 1080 });
   
@@ -136,7 +142,7 @@ async function handleCookieConsent(page: Page): Promise<void> {
   });
 }
 
-async function collectLinks(maxPages: number = Infinity, enableDelayBetweenActions: boolean = false): Promise<ItemLink[] | undefined> {
+async function collectLinks(RUNTIME_CONF: RuntimeConfig): Promise<ItemLink[] | undefined> {
   // Store all collected links
   const allLinks: ItemLink[] = [];
   
@@ -147,23 +153,24 @@ async function collectLinks(maxPages: number = Infinity, enableDelayBetweenActio
     const page = await setupPage(browser);
     
     // Initial URL - start from page 1
-    let currentUrl: string = 'https://www.huuto.net/haku/status/closed/page/1/sort/newest/category/110';
-    let pageNum: number = 1;
+    let currentUrl: string = `https://www.huuto.net/haku/status/closed/page/${RUNTIME_CONF.START_PAGE_NUMBER}/sort/newest/category/110`;
+    let pageNum: number = RUNTIME_CONF.START_PAGE_NUMBER
     
-    console.log(`Starting to collect links from Huuto.net (max pages: ${maxPages})...`);
+    console.log(`Starting to collect links from Huuto.net (max pages: ${RUNTIME_CONF.MAX_PAGES_TO_CRAWL})...`);
     console.log(`Navigating to first page: ${currentUrl}`);
     
     // Add random delay before first navigation
-    if(enableDelayBetweenActions) {
+    if(RUNTIME_CONF.ENABLE_DELAY_BETWEEN_ACTIONS) {
       await randomDelay(100, 200, 'delay before first navigation');
     }
     
     
     // Navigate to the page
     await page.goto(currentUrl, { waitUntil: 'networkidle2' });
+
     
     // Add a random delay to seem more human-like
-    if(enableDelayBetweenActions) {
+    if(RUNTIME_CONF.ENABLE_DELAY_BETWEEN_ACTIONS) {
       await randomDelay(300, 750, 'delay to humanize action');
     }
     
@@ -175,17 +182,17 @@ async function collectLinks(maxPages: number = Infinity, enableDelayBetweenActio
     
     // Process all pages up to maxPages
     do {
-      console.log(`\nProcessing page ${pageNum}/${maxPages}: ${currentUrl}`);
+      console.log(`\nProcessing page ${pageNum}/${RUNTIME_CONF.MAX_PAGES_TO_CRAWL}: ${currentUrl}`);
       
       if (pageNum > 1) {
         // Already loaded page 1
-        if(enableDelayBetweenActions) {
+        if(RUNTIME_CONF.ENABLE_DELAY_BETWEEN_ACTIONS) {
           await randomDelay(150, 250, 'delay before goto');
         }
         
         await page.goto(currentUrl, { waitUntil: 'networkidle2' });
 
-        if(enableDelayBetweenActions) {
+        if(RUNTIME_CONF.ENABLE_DELAY_BETWEEN_ACTIONS) {
           await randomDelay(100, 250, 'delay after goto');
         }
         
@@ -202,13 +209,26 @@ async function collectLinks(maxPages: number = Infinity, enableDelayBetweenActio
       
       // Get all the links with the specified class
       const links: ItemLink[] = await page.evaluate(() => {
+
+        const cleanPrice = (price: string): Number =>  {
+          const euroSymbolStripped = price.replace('€', '')
+          const replaceComma = euroSymbolStripped.replace(',', '.')
+          return Number(replaceComma)
+        }
+
         // Use document.querySelectorAll instead of $$ to match standard DOM API
         const elements = document.querySelectorAll('.item-card-link');
         
         return Array.from(elements).map(el => {
+
+          const itemPriceString = el.querySelector('.item-card__price')?.textContent ?? '';
+
+          const itemPrice = cleanPrice(itemPriceString)
+
           return {
             href: (el as HTMLAnchorElement).href,
-            text: el.textContent?.trim() || ''
+            text: el.textContent?.trim() || '',
+            price: itemPrice
           };
         });
       });
@@ -220,14 +240,14 @@ async function collectLinks(maxPages: number = Infinity, enableDelayBetweenActio
       
       // Move to next page
       pageNum++;
-      if (pageNum <= maxPages) {
+      if (pageNum <= RUNTIME_CONF.MAX_PAGES_TO_CRAWL) {
         currentUrl = `https://www.huuto.net/haku/status/closed/page/${pageNum}/sort/newest/category/11`;
         // Add a slightly longer delay between page navigations
-        if(enableDelayBetweenActions) {
+        if(RUNTIME_CONF.ENABLE_DELAY_BETWEEN_ACTIONS) {
           await randomDelay(1000, 2000, 'delay to wait between page naviations: ');
         }
       }
-    } while (pageNum <= maxPages);
+    } while (pageNum <= RUNTIME_CONF.MAX_PAGES_TO_CRAWL);
     
     console.log(`\nCollection complete! Total links collected: ${allLinks.length}`);
     
@@ -245,8 +265,7 @@ async function collectLinks(maxPages: number = Infinity, enableDelayBetweenActio
   }
 }
 
-
-async function findSoldDeals(links: ItemLink[], maxDealsToProcess: number = Infinity, enableDelayBetweenActions: boolean = false): Promise<SoldDeal[]> {
+async function findSoldDeals(links: ItemLink[], maxDealsToProcess: number = Infinity, RUNTIME_CONF: RuntimeConfig): Promise<SoldDeal[]> {
   console.log(`Starting to filter sold deals (max deals to process: ${maxDealsToProcess})...`);
   
   // Initialize progress tracker with defaults
@@ -300,7 +319,7 @@ async function findSoldDeals(links: ItemLink[], maxDealsToProcess: number = Infi
       
       try {
         // Add random delay before visiting the page
-        if(enableDelayBetweenActions) { 
+        if(RUNTIME_CONF.ENABLE_DELAY_BETWEEN_ACTIONS) { 
           await randomDelay(750, 1500, 'delay before visiting the page');
         }
         
@@ -312,7 +331,7 @@ async function findSoldDeals(links: ItemLink[], maxDealsToProcess: number = Infi
         await handleCookieConsent(page);
         
         // Add random delay to simulate reading
-        if(enableDelayBetweenActions) {
+        if(RUNTIME_CONF.ENABLE_DELAY_BETWEEN_ACTIONS) {
           await randomDelay(1000, 2000, 'delay to simulate reading');
         }
         
@@ -365,7 +384,7 @@ async function findSoldDeals(links: ItemLink[], maxDealsToProcess: number = Infi
         // If we encounter a Cloudflare challenge, wait longer before continuing
         if (pageError instanceof Error && (pageError.message.includes('timeout') || pageError.message.includes('Navigation failed'))) {
           console.log('Possible anti-bot challenge detected. Adding extra delay...');
-          if(enableDelayBetweenActions) {
+          if(RUNTIME_CONF.ENABLE_DELAY_BETWEEN_ACTIONS) {
             await randomDelay(500, 10000, 'delay for anti-bot challenge');
           }
         }
@@ -377,7 +396,7 @@ async function findSoldDeals(links: ItemLink[], maxDealsToProcess: number = Infi
       await browser.close();
       
       // Add a longer random delay between browser instances
-      if(enableDelayBetweenActions) {
+      if(RUNTIME_CONF.ENABLE_DELAY_BETWEEN_ACTIONS) {
         await randomDelay(500, 750, 'delay between browser instances');
       }
     }
@@ -413,6 +432,12 @@ function formatElapsedTime(milliseconds: number): string {
   return result;
 }
 
+interface RuntimeConfig {
+  ENABLE_DELAY_BETWEEN_ACTIONS: boolean;
+  MAX_PAGES_TO_CRAWL: number;
+  START_PAGE_NUMBER: number;
+}
+
 // Main execution
 async function main() {
 
@@ -422,9 +447,14 @@ async function main() {
   
   try {
     // Configurable parameters
-    const MAX_PAGES_TO_CRAWL: number = 2;  
+
+    const RUNTIME_CONF = {
+      MAX_PAGES_TO_CRAWL: 2,
+      ENABLE_DELAY_BETWEEN_ACTIONS: false,
+      START_PAGE_NUMBER: 1
+    }
+
     const MAX_DEALS_TO_PROCESS: number = Infinity;
-    const ENABLE_DELAY_BETWEEN_ACTIONS: boolean = false
 
     // Check if we have existing links
     let links: ItemLink[] | undefined;
@@ -458,12 +488,12 @@ async function main() {
     
     // Collect links if needed, with page limit
     if (!links || links.length === 0) {
-      links = await collectLinks(MAX_PAGES_TO_CRAWL);
+      links = await collectLinks(RUNTIME_CONF);
     }
     
     // Process closed deals with max deals limit
     if (links && links.length > 0) {
-      const closedDeals = await findSoldDeals(links, MAX_DEALS_TO_PROCESS, ENABLE_DELAY_BETWEEN_ACTIONS);
+      const closedDeals = await findSoldDeals(links, MAX_DEALS_TO_PROCESS, RUNTIME_CONF);
       console.log(`Successfully identified ${closedDeals.length} sold deals.`);
     } else {
       console.error('No links available to process.');
