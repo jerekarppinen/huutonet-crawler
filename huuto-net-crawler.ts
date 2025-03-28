@@ -360,7 +360,7 @@ async function findSoldDeals(links: ItemLink[], maxDealsToProcess: number = Infi
             const price = priceElement ? (priceElement as HTMLElement).innerText.trim() : undefined;
             
             // Try to find closed date
-            const dateElement = document.querySelector('.closing-info');
+            const dateElement = document.querySelector('.closing-info span');
             const closedDate = dateElement ? (dateElement as HTMLElement).innerText.trim() : undefined;
             
             return { title, price, closedDate };
@@ -405,9 +405,6 @@ async function findSoldDeals(links: ItemLink[], maxDealsToProcess: number = Infi
       }
     }
   }
-  
-  console.log('')
-  console.log(`Found ${progressTracker.soldDeals.length} sold deals out of ${links.length} total links`);
   
   return progressTracker.soldDeals;
 }
@@ -502,6 +499,7 @@ async function main() {
     // Process closed deals with max deals limit
     if (links && links.length > 0) {
       const closedDeals = await findSoldDeals(links, MAX_DEALS_TO_PROCESS, RUNTIME_CONF);
+      console.log('')
       console.log(`Successfully identified ${closedDeals.length} sold deals.`);
     } else {
       console.error('No links available to process.');
