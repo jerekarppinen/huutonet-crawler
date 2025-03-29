@@ -3,25 +3,9 @@ import { Browser, Page } from 'puppeteer';
 import * as fs from 'fs/promises';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 import { isAfter, isBefore, parse } from 'date-fns';
+import { ItemLink, SoldDeal, ProgressTracker } from './types';
 
 puppeteer.use(StealthPlugin());
-
-interface ItemLink {
-  href: string;
-  text: string;
-  price: number;
-}
-
-interface SoldDeal {
-  title: string;
-  closedDate?: string;
-  price?: string;
-}
-
-interface ProgressTracker {
-  lastCheckedIndex: number;
-  soldDeals: SoldDeal[];
-}
 
 // Create a reusable function to launch a browser with anti-detection settings
 async function launchBrowser(): Promise<Browser> {
@@ -237,7 +221,6 @@ async function collectLinks(RUNTIME_CONF: RuntimeConfig): Promise<ItemLink[] | u
           if(itemPrice >= RUNTIME_CONF.MIN_PRICE && itemPrice <= RUNTIME_CONF.MAX_PRICE) {
             return {
               href: (el as HTMLAnchorElement).href,
-              text: el.textContent?.trim() || '',
               price: itemPrice
             };
           }
@@ -391,7 +374,6 @@ async function findSoldDeals(links: ItemLink[], maxDealsToProcess: number = Infi
           // if (isBefore(dealDate, maxDate)) {
           //   console.log('Reached or passed max date: ' + RUNTIME_CONF.MAX_DATE + '. Stopping crawler.');
           //   break;
-          //   // Add your logic here to stop the crawler
           // } else {
           //   console.log('Continuing to crawl. Latest date (' + latestClosedDate + ') is before max date (' + RUNTIME_CONF.MAX_DATE + ').');
           // }
@@ -476,9 +458,6 @@ interface RuntimeConfig {
 // Main execution
 async function main() {
 
-  // const args = process.argv
-  // console.log('args', args)
-
   // Start the timer
   const startTime = Date.now();
   console.log(`Script started at: ${new Date(startTime).toLocaleString()}`);
@@ -489,7 +468,7 @@ async function main() {
     const RUNTIME_CONF: RuntimeConfig = {
       START_PAGE_URL: 'https://www.huuto.net/haku/status/closed/page/current/sort/newest/category/110',
       START_PAGE_NUMBER: 1,
-      MAX_PAGES_TO_CRAWL: 20,
+      MAX_PAGES_TO_CRAWL: 5,
       ENABLE_DELAY_BETWEEN_ACTIONS: false,
       MIN_PRICE: 10,
       MAX_PRICE: 15,
