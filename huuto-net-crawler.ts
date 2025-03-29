@@ -2,6 +2,7 @@ import puppeteer from 'puppeteer-extra';
 import { Browser, Page } from 'puppeteer';
 import * as fs from 'fs/promises';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
+import { isAfter, isBefore, parse } from 'date-fns';
 
 puppeteer.use(StealthPlugin());
 
@@ -154,10 +155,16 @@ async function collectLinks(RUNTIME_CONF: RuntimeConfig): Promise<ItemLink[] | u
     const page = await setupPage(browser);
     
     // Initial URL - start from page 1
-    let currentUrl: string = `https://www.huuto.net/haku/status/closed/page/${RUNTIME_CONF.START_PAGE_NUMBER}/sort/newest/category/110`;
+    let currentUrl: string = RUNTIME_CONF.START_PAGE_URL.replace('current', RUNTIME_CONF.START_PAGE_NUMBER.toString())
     let pageNum: number = RUNTIME_CONF.START_PAGE_NUMBER
     
-    console.log(`Starting to collect links from Huuto.net (max pages: ${RUNTIME_CONF.MAX_PAGES_TO_CRAWL})...`);
+    console.log(`Starting to collect links from Huuto.net`);
+    console.log('');
+    console.log('MIN_PRICE: ' + RUNTIME_CONF.MIN_PRICE);
+    console.log('MAX_PRICE: ' + RUNTIME_CONF.MAX_PRICE);
+    console.log('MAX_DATE: ' + RUNTIME_CONF.MAX_DATE);
+    console.log('MAX_PAGES_TO_CRAWL: ' + RUNTIME_CONF.MAX_PAGES_TO_CRAWL);
+    console.log('');
     console.log(`Navigating to first page: ${currentUrl}`);
     
     // Add random delay before first navigation
@@ -245,7 +252,9 @@ async function collectLinks(RUNTIME_CONF: RuntimeConfig): Promise<ItemLink[] | u
       // Move to next page
       pageNum++;
       if (pageNum <= RUNTIME_CONF.MAX_PAGES_TO_CRAWL) {
-        currentUrl = `https://www.huuto.net/haku/status/closed/page/${pageNum}/sort/newest/category/110`;
+
+        currentUrl = currentUrl.replace(/\/page\/\d+\//, `/page/${pageNum}/`);
+
         // Add a slightly longer delay between page navigations
         if(RUNTIME_CONF.ENABLE_DELAY_BETWEEN_ACTIONS) {
           await randomDelay(1000, 2000, 'delay to wait between page naviations: ');
@@ -360,11 +369,32 @@ async function findSoldDeals(links: ItemLink[], maxDealsToProcess: number = Infi
             const price = priceElement ? (priceElement as HTMLElement).innerText.trim() : undefined;
             
             // Try to find closed date
-            const dateElement = document.querySelector('.closing-info span');
+            const dateElement = document.querySelector('.closing-info span.text-block');
             const closedDate = dateElement ? (dateElement as HTMLElement).innerText.trim().split(' ')[0] : undefined;
             
             return { title, price, closedDate };
           });
+
+          console.log('dealInfo', dealInfo)
+
+          // const latestClosedDate = dealInfo.closedDate!
+
+          // const DATE_FORMAT = 'dd.MM.yyyy';
+
+          // const maxDate = parse(RUNTIME_CONF.MAX_DATE, DATE_FORMAT, new Date());
+          // const dealDate = parse(latestClosedDate, DATE_FORMAT, new Date());
+
+          // console.log('dealDate', dealDate)
+          // console.log('maxDate', maxDate)
+          // console.log('isBefore(compareDate, maxDate)', isBefore(dealDate, maxDate))
+
+          // if (isBefore(dealDate, maxDate)) {
+          //   console.log('Reached or passed max date: ' + RUNTIME_CONF.MAX_DATE + '. Stopping crawler.');
+          //   break;
+          //   // Add your logic here to stop the crawler
+          // } else {
+          //   console.log('Continuing to crawl. Latest date (' + latestClosedDate + ') is before max date (' + RUNTIME_CONF.MAX_DATE + ').');
+          // }
           
           // Add the deal to our collection
           progressTracker.soldDeals.push({
@@ -434,29 +464,36 @@ function formatElapsedTime(milliseconds: number): string {
 }
 
 interface RuntimeConfig {
+  START_PAGE_URL: string;
   ENABLE_DELAY_BETWEEN_ACTIONS: boolean;
   MAX_PAGES_TO_CRAWL: number;
   START_PAGE_NUMBER: number;
   MIN_PRICE: number;
   MAX_PRICE: number;
+  MAX_DATE: string;
 }
 
 // Main execution
 async function main() {
+
+  // const args = process.argv
+  // console.log('args', args)
 
   // Start the timer
   const startTime = Date.now();
   console.log(`Script started at: ${new Date(startTime).toLocaleString()}`);
   
   try {
-    // Configurable parameters
 
+    // Configurable parameters
     const RUNTIME_CONF: RuntimeConfig = {
-      MAX_PAGES_TO_CRAWL: 1,
-      ENABLE_DELAY_BETWEEN_ACTIONS: false,
+      START_PAGE_URL: 'https://www.huuto.net/haku/status/closed/page/current/sort/newest/category/110',
       START_PAGE_NUMBER: 1,
-      MIN_PRICE: 1.5,
-      MAX_PRICE: 24.9
+      MAX_PAGES_TO_CRAWL: 20,
+      ENABLE_DELAY_BETWEEN_ACTIONS: false,
+      MIN_PRICE: 10,
+      MAX_PRICE: 15,
+      MAX_DATE: '28.3.2025'
     }
 
     const MAX_DEALS_TO_PROCESS: number = Infinity;
