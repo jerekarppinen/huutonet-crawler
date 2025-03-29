@@ -5,6 +5,16 @@ import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 import { isAfter, isBefore, parse } from 'date-fns';
 import { ItemLink, SoldDeal, ProgressTracker } from './types';
 
+function jsonToCsv(items: SoldDeal[]) {
+  const header = Object.keys(items[0]);  const headerString = header.join(',');  // handle null or undefined values here
+  const replacer = (key: string, value: unknown) => value ?? '';  const rowItems = items.map((row) =>
+    header
+      .map((fieldName) => JSON.stringify(((row as unknown) as Record<string, unknown>)[fieldName], replacer))
+      .join(',')
+  );  // join header and body, and break into separate lines
+  const csv = [headerString, ...rowItems].join('\r\n');  return csv;
+}
+
 puppeteer.use(StealthPlugin());
 
 // Create a reusable function to launch a browser with anti-detection settings
@@ -303,7 +313,7 @@ async function findSoldDeals(links: ItemLink[], maxDealsToProcess: number = Infi
   // Start from the next unchecked link
   const startIndex = progressTracker.lastCheckedIndex + 1;
   
-  for (let i = startIndex; i < links.length && progressTracker.soldDeals.length < maxDealsToProcess; i++) {
+  for (let i = startIndex; i < links.length; i++) {
     console.log(`Checking link ${i+1}/${links.length}: ${links[i].href}`);
     
     // Create a new browser instance for each link
@@ -468,7 +478,7 @@ async function main() {
     const RUNTIME_CONF: RuntimeConfig = {
       START_PAGE_URL: 'https://www.huuto.net/haku/status/closed/page/current/sort/newest/category/110',
       START_PAGE_NUMBER: 1,
-      MAX_PAGES_TO_CRAWL: 5,
+      MAX_PAGES_TO_CRAWL: 1,
       ENABLE_DELAY_BETWEEN_ACTIONS: false,
       MIN_PRICE: 10,
       MAX_PRICE: 15,
@@ -526,6 +536,12 @@ async function main() {
     // End the timer and calculate elapsed time
     const endTime = Date.now();
     const elapsedTime = endTime - startTime;
+
+    const soldDeals = await fs.readFile('huuto_sold_deals.json', 'utf-8');
+    const items: SoldDeal[] = JSON.parse(soldDeals);
+    const csv = jsonToCsv(items)
+  
+    await fs.writeFile('sold_deals.csv', csv, 'utf-8');
     
     console.log(`\n========= SCRIPT EXECUTION SUMMARY =========`);
     console.log(`Script started at: ${new Date(startTime).toLocaleString()}`);
