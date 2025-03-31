@@ -367,8 +367,11 @@ async function findSoldDeals(links: ItemLink[], maxDealsToProcess: number = Infi
 
             const sellerElement = document.querySelector('.mini-profile a');
             const seller = sellerElement ? (sellerElement as HTMLElement).innerText : undefined
+
+            const buyerElement = document.querySelector('.control-panel-item p a');
+            const buyer = buyerElement ? (buyerElement as HTMLElement).innerText : undefined
             
-            return { title, price, closedDate, seller };
+            return { title, price, closedDate, seller, buyer };
           });
 
           console.log('dealInfo', dealInfo)
