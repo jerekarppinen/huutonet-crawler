@@ -364,8 +364,11 @@ async function findSoldDeals(links: ItemLink[], maxDealsToProcess: number = Infi
             // Try to find closed date
             const dateElement = document.querySelector('.closing-info span.text-block');
             const closedDate = dateElement ? (dateElement as HTMLElement).innerText.trim().split(' ')[0] : undefined;
+
+            const sellerElement = document.querySelector('.mini-profile a');
+            const seller = sellerElement ? (sellerElement as HTMLElement).innerText : undefined
             
-            return { title, price, closedDate };
+            return { title, price, closedDate, seller };
           });
 
           console.log('dealInfo', dealInfo)
