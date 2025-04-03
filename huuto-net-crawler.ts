@@ -3,7 +3,7 @@ import { Browser, Page } from 'puppeteer';
 import * as fs from 'fs/promises';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 import { isAfter, isBefore, parse } from 'date-fns';
-import { ItemLink, SoldDeal, ProgressTracker } from './types';
+import { ItemLink, SoldDeal, ProgressTracker, RuntimeConfig } from './types';
 
 function jsonToCsv(items: SoldDeal[]) {
   const header = Object.keys(items[0]);  const headerString = header.join(',');  // handle null or undefined values here
@@ -459,16 +459,6 @@ function formatElapsedTime(milliseconds: number): string {
   result += `${remainingSeconds} second${remainingSeconds !== 1 ? 's' : ''}`;
   
   return result;
-}
-
-interface RuntimeConfig {
-  START_PAGE_URL: string;
-  ENABLE_DELAY_BETWEEN_ACTIONS: boolean;
-  MAX_PAGES_TO_CRAWL: number;
-  START_PAGE_NUMBER: number;
-  MIN_PRICE: number;
-  MAX_PRICE: number;
-  MAX_DATE: string;
 }
 
 // Main execution
