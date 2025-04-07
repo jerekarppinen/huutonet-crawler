@@ -109,19 +109,34 @@ async function collectLinks(RUNTIME_CONF: RuntimeConfig): Promise<ItemLink[] | u
           return Number(replaceComma)
         }
 
+        const parseDate = (dateString: string): Date | null => {
+          const parts = dateString.split('.');
+          if (parts.length === 3) {
+            const day = parseInt(parts[0], 10);
+            const month = parseInt(parts[1], 10) - 1; // Month is 0-indexed
+            const year = parseInt(parts[2], 10);
+            return new Date(year, month, day);
+          }
+          return null;
+        };
+
         // Use document.querySelectorAll instead of $$ to match standard DOM API
         const elements = document.querySelectorAll('.item-card-link');
         
         return Array.from(elements).map(el => {
 
           const itemPriceString = el.querySelector('.item-card__price')?.textContent ?? '';
-
           const itemPrice = cleanPrice(itemPriceString)
+
+          const itemDateString = el.querySelector('.item-card__time')?.textContent ?? '';
+          const itemDateStringTrimmed = itemDateString.trim().split(' ')[0]
+          const itemDate = parseDate(itemDateString)
           
           if(itemPrice >= RUNTIME_CONF.MIN_PRICE && itemPrice <= RUNTIME_CONF.MAX_PRICE) {
             return {
               href: (el as HTMLAnchorElement).href,
-              price: itemPrice
+              price: itemPrice,
+              publishedDate: itemDateStringTrimmed
             };
           }
         }).filter((item): item is ItemLink => item !== undefined); // Filter out undefined values

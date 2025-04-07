@@ -11,6 +11,7 @@ export interface RuntimeConfig {
 export interface ItemLink {
     href: string;
     price: number;
+    publishedDate: string;
 }
   
 export interface SoldDeal {
