@@ -265,24 +265,6 @@ async function findSoldDeals(links: ItemLink[], maxDealsToProcess: number = Infi
           });
 
           console.log('dealInfo', dealInfo)
-
-          // const latestClosedDate = dealInfo.closedDate!
-
-          // const DATE_FORMAT = 'dd.MM.yyyy';
-
-          // const maxDate = parse(RUNTIME_CONF.MAX_DATE, DATE_FORMAT, new Date());
-          // const dealDate = parse(latestClosedDate, DATE_FORMAT, new Date());
-
-          // console.log('dealDate', dealDate)
-          // console.log('maxDate', maxDate)
-          // console.log('isBefore(compareDate, maxDate)', isBefore(dealDate, maxDate))
-
-          // if (isBefore(dealDate, maxDate)) {
-          //   console.log('Reached or passed max date: ' + RUNTIME_CONF.MAX_DATE + '. Stopping crawler.');
-          //   break;
-          // } else {
-          //   console.log('Continuing to crawl. Latest date (' + latestClosedDate + ') is before max date (' + RUNTIME_CONF.MAX_DATE + ').');
-          // }
           
           // Add the deal to our collection
           progressTracker.soldDeals.push({
@@ -340,7 +322,7 @@ async function main() {
     const RUNTIME_CONF: RuntimeConfig = {
       START_PAGE_URL: 'https://www.huuto.net/haku/status/closed/page/current/sort/newest/category/110',
       START_PAGE_NUMBER: 1,
-      MAX_PAGES_TO_CRAWL: 1,
+      MAX_PAGES_TO_CRAWL: 2,
       ENABLE_DELAY_BETWEEN_ACTIONS: false,
       MIN_PRICE: 10,
       MAX_PRICE: 15,
