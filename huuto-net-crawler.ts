@@ -6,6 +6,10 @@ import { isAfter, isBefore, parse } from 'date-fns';
 import { ItemLink, SoldDeal, ProgressTracker, RuntimeConfig } from './types';
 import jsonToCsv from './jsonToCsv';
 import autoScroll from './autoScroll';
+import handleCookieConsent from './handleCookieConsent';
+import randomDelay from './randomDelay';
+import setupPage from './setupPage';
+import formatElapsedTime from './formatElapsedTime';
 
 puppeteer.use(StealthPlugin());
 
@@ -21,63 +25,6 @@ async function launchBrowser(): Promise<Browser> {
       '--disable-gpu',
       '--window-size=1920,1080',
     ]
-  });
-}
-
-// Create a function to set up a page with anti-detection measures
-async function setupPage(browser: Browser): Promise<Page> {
-  const page = await browser.newPage();
-
-  // Helper to enable logging for nodejs
-  await page.exposeFunction('logInNodeJs', (value: unknown) => console.log(value));
-  // Usage:
-  // @ts-ignore
-  // logInNodeJs(1234)
-
-  // Set a realistic viewport
-  await page.setViewport({ width: 1920, height: 1080 });
-  
-  // Set a realistic user agent
-  await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36');
-  
-  // Add additional headers to appear more browser-like
-  await page.setExtraHTTPHeaders({
-    'Accept-Language': 'en-US,en;q=0.9,fi;q=0.8',
-    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
-    'Accept-Encoding': 'gzip, deflate, br',
-    'Connection': 'keep-alive',
-    'Upgrade-Insecure-Requests': '1'
-  });
-  
-  // Randomize the timing of the navigation
-  await page.setDefaultNavigationTimeout(45000);
-  
-  return page;
-}
-
-// Function to add random delay to mimic human behavior
-async function randomDelay(min: number, max: number, message: string = 'delay'): Promise<void> {
-    const delay = Math.floor(Math.random() * (max - min + 1)) + min;
-    console.log('---')
-    console.log('min', min)
-    console.log('max', max)
-    console.log(`${message} ${delay}`)
-    console.log('---')
-    return new Promise(resolve => setTimeout(resolve, delay));
-}
-
-// Handle cookie consent popup
-async function handleCookieConsent(page: Page): Promise<void> {
-  await page.evaluate(() => {
-    function xcc_contains(selector: string, text: string) {
-      var elements = document.querySelectorAll(selector);
-      return Array.prototype.filter.call(elements, function(element){
-        return RegExp(text, "i").test(element.textContent?.trim() || '');
-      });
-    }
-    var _xcc;
-    _xcc = xcc_contains('[id*=cookie] a, [class*=cookie] a, [id*=cookie] button, [class*=cookie] button', '^(Hyväksy kaikki)$');
-    if (_xcc != null && _xcc.length != 0) { _xcc[0].click(); }
   });
 }
 
@@ -378,30 +325,6 @@ async function findSoldDeals(links: ItemLink[], maxDealsToProcess: number = Infi
   }
   
   return progressTracker.soldDeals;
-}
-
-// Helper function to format elapsed time
-function formatElapsedTime(milliseconds: number): string {
-  const seconds = Math.floor(milliseconds / 1000);
-  const minutes = Math.floor(seconds / 60);
-  const hours = Math.floor(minutes / 60);
-  
-  const remainingMinutes = minutes % 60;
-  const remainingSeconds = seconds % 60;
-  
-  let result = '';
-  
-  if (hours > 0) {
-    result += `${hours} hour${hours !== 1 ? 's' : ''} `;
-  }
-  
-  if (remainingMinutes > 0 || hours > 0) {
-    result += `${remainingMinutes} minute${remainingMinutes !== 1 ? 's' : ''} `;
-  }
-  
-  result += `${remainingSeconds} second${remainingSeconds !== 1 ? 's' : ''}`;
-  
-  return result;
 }
 
 // Main execution
