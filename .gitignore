@@ -2,3 +2,4 @@ node_modules
 huuto_all_links.json
 huuto_progress_tracker.json
 huuto_sold_deals.json
+sold_deals.csv

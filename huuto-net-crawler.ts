@@ -4,16 +4,8 @@ import * as fs from 'fs/promises';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 import { isAfter, isBefore, parse } from 'date-fns';
 import { ItemLink, SoldDeal, ProgressTracker, RuntimeConfig } from './types';
-
-function jsonToCsv(items: SoldDeal[]) {
-  const header = Object.keys(items[0]);  const headerString = header.join(',');  // handle null or undefined values here
-  const replacer = (key: string, value: unknown) => value ?? '';  const rowItems = items.map((row) =>
-    header
-      .map((fieldName) => JSON.stringify(((row as unknown) as Record<string, unknown>)[fieldName], replacer))
-      .join(',')
-  );  // join header and body, and break into separate lines
-  const csv = [headerString, ...rowItems].join('\r\n');  return csv;
-}
+import jsonToCsv from './jsonToCsv';
+import autoScroll from './autoScroll';
 
 puppeteer.use(StealthPlugin());
 
@@ -72,55 +64,6 @@ async function randomDelay(min: number, max: number, message: string = 'delay'):
     console.log(`${message} ${delay}`)
     console.log('---')
     return new Promise(resolve => setTimeout(resolve, delay));
-}
-
-// Function to scroll down the page gradually with random behavior
-async function autoScroll(page: Page): Promise<void> {
-  // This version adds randomness to scrolling behavior
-  await page.evaluate(() => {
-    return new Promise<void>((resolve) => {
-      let totalHeight = 0;
-      const scrollHeight = document.body.scrollHeight;
-      
-      const timer = setInterval(() => {
-        // Random scroll distance between 80 and 300 pixels
-        const distance = Math.floor(Math.random() * 220) + 80;
-        
-        window.scrollBy(0, distance);
-        totalHeight += distance;
-        
-        // Randomly pause scrolling sometimes to mimic human reading
-        if (Math.random() < 0.2) {
-          // Pause for 500-2000ms
-          const pauseTime = Math.floor(Math.random() * 1500) + 500;
-          clearInterval(timer);
-          
-          setTimeout(() => {
-            // Resume scrolling after pause
-            if (totalHeight >= scrollHeight) {
-              resolve();
-            } else {
-              // Continue scrolling
-              const newTimer = setInterval(() => {
-                const newDistance = Math.floor(Math.random() * 220) + 80;
-                window.scrollBy(0, newDistance);
-                totalHeight += newDistance;
-                
-                if (totalHeight >= scrollHeight) {
-                  clearInterval(newTimer);
-                  resolve();
-                }
-              }, 100 + Math.floor(Math.random() * 50)); // Random interval
-            }
-          }, pauseTime);
-          
-        } else if (totalHeight >= scrollHeight) {
-          clearInterval(timer);
-          resolve();
-        }
-      }, 100 + Math.floor(Math.random() * 50)); // Random interval
-    });
-  });
 }
 
 // Handle cookie consent popup
