@@ -120,8 +120,15 @@ async function collectLinks(RUNTIME_CONF: RuntimeConfig): Promise<ItemLink[] | u
           return null;
         };
 
+        const isDateBefore = (date1: Date | null, date2: Date | null): boolean => {
+          if (!date1 || !date2) return false;
+          return date1.getTime() < date2.getTime();
+        };
+
         // Use document.querySelectorAll instead of $$ to match standard DOM API
         const elements = document.querySelectorAll('.item-card-link');
+
+        let shouldStopCrawling = false;
         
         return Array.from(elements).map(el => {
 
@@ -131,12 +138,19 @@ async function collectLinks(RUNTIME_CONF: RuntimeConfig): Promise<ItemLink[] | u
           const itemDateString = el.querySelector('.item-card__time')?.textContent ?? '';
           const itemDateStringTrimmed = itemDateString.trim().split(' ')[0]
           const itemDate = parseDate(itemDateString)
+
+          const destinationDate = parseDate(RUNTIME_CONF.MAX_DATE);
+
+          if (itemDate && isDateBefore(itemDate, destinationDate)) {
+            shouldStopCrawling = true;
+          }
           
           if(itemPrice >= RUNTIME_CONF.MIN_PRICE && itemPrice <= RUNTIME_CONF.MAX_PRICE) {
             return {
               href: (el as HTMLAnchorElement).href,
               price: itemPrice,
-              publishedDate: itemDateStringTrimmed
+              publishedDate: itemDateStringTrimmed,
+              shouldStopCrawling
             };
           }
         }).filter((item): item is ItemLink => item !== undefined); // Filter out undefined values
@@ -219,7 +233,14 @@ async function findSoldDeals(links: ItemLink[], maxDealsToProcess: number = Infi
   const startIndex = progressTracker.lastCheckedIndex + 1;
   
   for (let i = startIndex; i < links.length; i++) {
-    console.log(`Checking link ${i+1}/${links.length}: ${links[i].href}`);
+    console.log(`Checking link (${links[i].publishedDate}) ${i+1}/${links.length}: ${links[i].href}`);
+
+    // Check if we should stop processing
+    if (links[i].shouldStopCrawling) {
+      console.log('')
+      console.log(`----> Reached the date limit ${RUNTIME_CONF.MAX_DATE}, stopping further processing.`);
+      break;
+    }
     
     // Create a new browser instance for each link
     const browser = await launchBrowser();
@@ -337,11 +358,11 @@ async function main() {
     const RUNTIME_CONF: RuntimeConfig = {
       START_PAGE_URL: 'https://www.huuto.net/haku/status/closed/page/current/sort/newest/category/110',
       START_PAGE_NUMBER: 1,
-      MAX_PAGES_TO_CRAWL: 2,
+      MAX_PAGES_TO_CRAWL: 4,
       ENABLE_DELAY_BETWEEN_ACTIONS: false,
       MIN_PRICE: 10,
-      MAX_PRICE: 15,
-      MAX_DATE: '28.3.2025'
+      MAX_PRICE: 100,
+      MAX_DATE: '31.3.2025'
     }
 
     const MAX_DEALS_TO_PROCESS: number = Infinity;
