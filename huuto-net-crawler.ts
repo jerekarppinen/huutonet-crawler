@@ -1,8 +1,7 @@
 import puppeteer from 'puppeteer-extra';
-import { Browser, Page } from 'puppeteer';
+import { Browser } from 'puppeteer';
 import * as fs from 'fs/promises';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
-import { isAfter, isBefore, parse } from 'date-fns';
 import { ItemLink, SoldDeal, ProgressTracker, RuntimeConfig } from './types';
 import jsonToCsv from './jsonToCsv';
 import autoScroll from './autoScroll';
@@ -139,6 +138,8 @@ async function collectLinks(RUNTIME_CONF: RuntimeConfig): Promise<ItemLink[] | u
           const itemDateStringTrimmed = itemDateString.trim().split(' ')[0]
           const itemDate = parseDate(itemDateString)
 
+          const category: string = document.querySelector('a.active')?.textContent?.trim() ?? '';
+
           const destinationDate = parseDate(RUNTIME_CONF.MAX_DATE);
 
           if (itemDate && isDateBefore(itemDate, destinationDate)) {
@@ -150,7 +151,8 @@ async function collectLinks(RUNTIME_CONF: RuntimeConfig): Promise<ItemLink[] | u
               href: (el as HTMLAnchorElement).href,
               price: itemPrice,
               publishedDate: itemDateStringTrimmed,
-              shouldStopCrawling
+              shouldStopCrawling,
+              category
             };
           }
         }).filter((item): item is ItemLink => item !== undefined); // Filter out undefined values
@@ -418,7 +420,14 @@ async function main() {
     const elapsedTime = endTime - startTime;
 
     const soldDeals = await fs.readFile('huuto_sold_deals.json', 'utf-8');
+
     const items: SoldDeal[] = JSON.parse(soldDeals);
+
+    if(items.length === 0) {
+      console.log('No sold deals found.');
+      return;
+    }
+
     const csv = jsonToCsv(items)
   
     await fs.writeFile('sold_deals.csv', csv, 'utf-8');

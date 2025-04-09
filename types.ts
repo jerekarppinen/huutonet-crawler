@@ -12,6 +12,8 @@ export interface ItemLink {
     href: string;
     price: number;
     publishedDate: string;
+    shouldStopCrawling: boolean
+    category: string;
 }
   
 export interface SoldDeal {
