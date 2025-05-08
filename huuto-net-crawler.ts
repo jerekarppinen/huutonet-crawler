@@ -1,5 +1,5 @@
 import puppeteer from 'puppeteer-extra';
-import { Browser } from 'puppeteer';
+import { Browser, Page } from 'puppeteer';
 import * as fs from 'fs/promises';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 import { ItemLink, SoldDeal, ProgressTracker, RuntimeConfig } from './types';
@@ -9,22 +9,98 @@ import handleCookieConsent from './handleCookieConsent';
 import randomDelay from './randomDelay';
 import setupPage from './setupPage';
 import formatElapsedTime from './formatElapsedTime';
+import path from 'path';
+import os from 'os';
+
+const WAIT_UNTIL = 'networkidle2';
 
 puppeteer.use(StealthPlugin());
 
 // Create a reusable function to launch a browser with anti-detection settings
 async function launchBrowser(): Promise<Browser> {
+
+  // Create a unique user data directory to maintain a clean session
+  const userDataDir = path.join(os.tmpdir(), 'cf_aggressive_' + Date.now());
+  await fs.mkdir(userDataDir, { recursive: true });
+
   return puppeteer.launch({
-    headless: true,
+    headless: false, // Absolutely must use headed mode for challenging sites
     args: [
       '--no-sandbox',
       '--disable-setuid-sandbox',
+      '--disable-web-security',
+      '--disable-features=IsolateOrigins,site-per-process',
+      `--user-data-dir=${userDataDir}`,
+      '--window-size=1920,1080',
+      '--disable-blink-features=AutomationControlled',
+      '--disable-infobars',
+      '--ignore-certificate-errors',
+      '--no-first-run',
+      '--no-default-browser-check',
       '--disable-dev-shm-usage',
       '--disable-accelerated-2d-canvas',
       '--disable-gpu',
-      '--window-size=1920,1080',
+      '--lang=en-US,en'
     ]
   });
+}
+
+async function isCloudflareBlocked(page: Page): Promise<boolean> {
+  try {
+    // Look for specific elements or text that indicate a Cloudflare challenge
+    const challengeElement = await page.$('#cf-error-details') || await page.$('iframe[src*="cloudflare.com/challenge"]');
+    if (challengeElement) {
+      console.warn('Cloudflare challenge detected!');
+      return true;
+    }
+    const blockedText = await page.evaluate(() => document.body?.textContent?.includes('Please unblock challenges.cloudflare.com'));
+    if (blockedText) {
+      console.warn('Cloudflare block page detected!');
+      return true;
+    }
+    return false;
+  } catch (error) {
+    console.error('Error checking for Cloudflare block:', error);
+    return false; // Assume not blocked if there's an error checking
+  }
+}
+
+async function navigateWithRetries(page: Page, url: string, retries: number = 3, delayMs: number = 5000): Promise<void> {
+  for (let i = 0; i < retries; i++) {
+    try {
+      console.log(`Attempting to navigate to ${url} (Attempt ${i + 1}/${retries})...`);
+      await page.goto(url, { waitUntil: 'networkidle2', timeout: 30000 });
+      if (await isCloudflareBlocked(page)) {
+        throw new Error('Cloudflare blocked the request.');
+      }
+      return; // Navigation successful
+    } catch (error: any) {
+      console.error(`Navigation failed (Attempt ${i + 1}): ${error.message}`);
+      if (i < retries - 1) {
+        console.log(`Waiting ${delayMs / 1000} seconds before retrying...`);
+        await new Promise(resolve => setTimeout(resolve, delayMs));
+      }
+    }
+  }
+  throw new Error(`Failed to navigate to ${url} after ${retries} attempts.`);
+}
+
+async function addHumanBehavior(page: Page) {
+  const viewport = page.viewport();
+  const width = viewport ? viewport.width : 0;
+  const height = viewport ? viewport.height : 0;
+  
+  // Move mouse randomly
+  for (let i = 0; i < 5; i++) {
+    await page.mouse.move(
+      Math.floor(Math.random() * width),
+      Math.floor(Math.random() * height),
+      { steps: 25 }
+    );
+  }
+  
+  // Small delay to mimic human behavior
+  await new Promise(resolve => setTimeout(resolve, Math.random() * 1000 + 1000));
 }
 
 async function collectLinks(RUNTIME_CONF: RuntimeConfig): Promise<ItemLink[] | undefined> {
@@ -57,7 +133,7 @@ async function collectLinks(RUNTIME_CONF: RuntimeConfig): Promise<ItemLink[] | u
     
     
     // Navigate to the page
-    await page.goto(currentUrl, { waitUntil: 'networkidle2' });
+    await navigateWithRetries(page, currentUrl);
 
     
     // Add a random delay to seem more human-like
@@ -81,7 +157,7 @@ async function collectLinks(RUNTIME_CONF: RuntimeConfig): Promise<ItemLink[] | u
           await randomDelay(150, 250, 'delay before goto');
         }
         
-        await page.goto(currentUrl, { waitUntil: 'networkidle2' });
+        await page.goto(currentUrl, { waitUntil: WAIT_UNTIL });
 
         if(RUNTIME_CONF.ENABLE_DELAY_BETWEEN_ACTIONS) {
           await randomDelay(100, 250, 'delay after goto');
@@ -93,6 +169,8 @@ async function collectLinks(RUNTIME_CONF: RuntimeConfig): Promise<ItemLink[] | u
         
         await autoScroll(page);
       }
+
+      await addHumanBehavior(page);
       
       // Wait for items to be visible
       await page.waitForSelector('.item-card-link', { timeout: 10000 })
@@ -259,7 +337,7 @@ async function findSoldDeals(links: ItemLink[], maxDealsToProcess: number = Infi
         
         
         // Navigate to the page
-        await page.goto(links[i].href, { waitUntil: 'networkidle2', timeout: 30000 });
+        await navigateWithRetries(page, links[i].href);
         
         // Handle cookie consent if it appears
         await handleCookieConsent(page);
